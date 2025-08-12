@@ -44,6 +44,11 @@ jobs:
             PLATFORM: 2019
             ARCH: x86
             cache: false
+          - os: windows-11-arm
+            COMPILER: msvc
+            PLATFORM: 2022
+            ARCH: aarch64
+            cache: false
           - os: ubuntu-20.04
             COMPILER: gcc
             PLATFORM: 20.04
@@ -64,52 +69,64 @@ jobs:
             PLATFORM: 2019
             ARCH: x86
             cache: true
+          - os: windows-11-arm
+            COMPILER: msvc
+            PLATFORM: 2022
+            ARCH: aarch64
+            cache: true
 
     steps:
       - uses: actions/checkout@v3
+
       - name: Install boost
         uses: ./
         id: install-boost
         with:
           boost_version: 1.79.0
-          platform_version: ${{matrix.PLATFORM}}
-          toolset: ${{matrix.COMPILER}}
-          arch: ${{matrix.ARCH}}
-          cache: ${{matrix.cache}}
+          platform_version: ${{ matrix.PLATFORM }}
+          toolset: ${{ matrix.COMPILER }}
+          arch: ${{ matrix.ARCH }}
+          cache: ${{ matrix.cache }}
 
       - name: Setup MinGW
         uses: egor-tensin/setup-mingw@v2
-        if: ${{runner.os == 'Windows' && matrix.COMPILER == 'mingw'}}
+        if: ${{ runner.os == 'Windows' && matrix.COMPILER == 'mingw' }}
         with:
           version: '8.1.0'
 
       - name: Install arm64 compiler
         run: sudo apt-get update && sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
-        if: matrix.ARCH == 'aarch64'
+        if: matrix.ARCH == 'aarch64' && runner.os == 'Linux'
 
       - name: Configure CMake mingw
         shell: bash
         working-directory: test
-        run: cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBoost_LIBRARY_DIRS="${{steps.install-boost.outputs.BOOST_ROOT}}/lib" -G "MinGW Makefiles" -B build
-        if: ${{matrix.COMPILER == 'mingw'}}
+        run: cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBoost_LIBRARY_DIRS="${{ steps.install-boost.outputs.BOOST_ROOT }}/lib" -G "MinGW Makefiles" -B build
+        if: ${{ matrix.COMPILER == 'mingw' }}
         env:
-          BOOST_ROOT: ${{steps.install-boost.outputs.BOOST_ROOT}}
+          BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
 
-      - name: Configure CMake arm64
+      - name: Configure CMake arm64 (Linux cross or Windows ARM native)
         shell: bash
         working-directory: test
-        run: cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARM_BINARIES=1 -DBoost_LIBRARY_DIRS="${{steps.install-boost.outputs.BOOST_ROOT}}/lib" -B build
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -A ARM64 -DBoost_LIBRARY_DIRS="${{ steps.install-boost.outputs.BOOST_ROOT }}/lib" -B build
+          else
+            cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_ARM_BINARIES=1 -DBoost_LIBRARY_DIRS="${{ steps.install-boost.outputs.BOOST_ROOT }}/lib" -B build
+          fi
         if: matrix.ARCH == 'aarch64'
         env:
-          BOOST_ROOT: ${{steps.install-boost.outputs.BOOST_ROOT}}
+          BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
 
       - name: Configure CMake
         shell: bash
         working-directory: test
-        run: cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBoost_LIBRARY_DIRS="${{steps.install-boost.outputs.BOOST_ROOT}}/lib" -B build
-        if: ${{matrix.COMPILER != 'mingw' && matrix.ARCH != 'aarch64'}}
+        run: cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBoost_LIBRARY_DIRS="${{ steps.install-boost.outputs.BOOST_ROOT }}/lib" -B build
+        if: ${{ matrix.COMPILER != 'mingw' && matrix.ARCH != 'aarch64' }}
         env:
-          BOOST_ROOT: ${{steps.install-boost.outputs.BOOST_ROOT}}
+          BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
+
       - name: Build
         working-directory: test/build
         shell: bash
