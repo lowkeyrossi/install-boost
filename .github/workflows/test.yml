@@ -37,6 +37,10 @@ jobs:
             boost_version: '1.80.0.beta1'
             version: 2022
             toolset: 'msvc'
+          - os: windows-11-arm
+            boost_version: '1.84.0' # newer version with ARM64 prebuilt MSVC binaries
+            version: 2022
+            toolset: 'msvc'
 
     steps:
       - uses: actions/checkout@v3
@@ -45,19 +49,20 @@ jobs:
         id: install-boost
         with:
           boost_version: ${{ matrix.boost_version }}
-          platform_version: ${{matrix.version}}
-          toolset: ${{matrix.toolset}}
+          platform_version: ${{ matrix.version }}
+          toolset: ${{ matrix.toolset }}
+          arch: ${{ matrix.arch || 'x86_64' }}
       - name: List contents of boost directory
         run: ls
-        working-directory: ${{ steps.install-boost.outputs.BOOST_ROOT }}
+        working-directory: ${{ steps.install-boost.outputs.BOOST_ROOT }}
         shell: bash
-      - run: echo "${{ steps.install-boost.outputs.BOOST_ROOT }}"
+      - run: echo "${{ steps.install-boost.outputs.BOOST_ROOT }}"
         shell: bash
-      - run: echo "${{ steps.install-boost.outputs.BOOST_VER }}"
+      - run: echo "${{ steps.install-boost.outputs.BOOST_VER }}"
         shell: bash
 
   build-custom-install-dir:
-    runs-on: ${{matrix.os}}
+    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
@@ -70,6 +75,10 @@ jobs:
             version: 2022
             dir: 'C:/'
             toolset: 'msvc'
+          - os: windows-11-arm
+            version: 2022
+            dir: 'C:/'
+            toolset: 'msvc'
 
     steps:
       - uses: actions/checkout@v3
@@ -77,16 +86,17 @@ jobs:
         uses: ./
         id: install-boost
         with:
-          boost_version: 1.80.0
-          boost_install_dir: ${{matrix.dir}}
+          boost_version: 1.84.0 # newer version with ARM64 prebuilt MSVC binaries
+          boost_install_dir: ${{ matrix.dir }}
           cache: false
-          platform_version: ${{matrix.version}}
-          toolset: ${{matrix.toolset}}
+          platform_version: ${{ matrix.version }}
+          toolset: ${{ matrix.toolset }}
+          arch: ${{ matrix.arch || 'x86_64' }}
       - name: List contents of boost directory
         run: ls
-        working-directory: ${{ steps.install-boost.outputs.BOOST_ROOT }}
+        working-directory: ${{ steps.install-boost.outputs.BOOST_ROOT }}
         shell: bash
-      - run: echo "${{ steps.install-boost.outputs.BOOST_ROOT }}"
+      - run: echo "${{ steps.install-boost.outputs.BOOST_ROOT }}"
         shell: bash
-      - run: echo "${{ steps.install-boost.outputs.BOOST_VER }}"
+      - run: echo "${{ steps.install-boost.outputs.BOOST_VER }}"
         shell: bash
